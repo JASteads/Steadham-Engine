@@ -1,0 +1,82 @@
+#include "engine.h"
+
+global bool running = 1;
+
+local void Game_sound_output(Sound_buffer *sbuffer, int hertz, int volume)
+{
+	local float t_sine;
+	int wave_period = sbuffer->samples_per_sec / hertz;
+	
+	short *sample_out = sbuffer->samples;
+	for (int sample_index = 0; sample_index < sbuffer->sample_count; ++sample_index)
+	{
+		float sine_wave = sinf(t_sine);
+		*sample_out++ = sine_wave * volume; /* This is the sample value */
+		*sample_out++ = sine_wave * volume;
+		t_sine += (2.0f * PI) / (float)wave_period;
+	}
+}
+
+local void Render_tile_gradient(Bitmap_buffer *buffer, int x_offset, int y_offset)
+{
+	uchar *row = (uchar*)buffer->memory;
+	for (int y = 0; y < buffer->h; y++)
+	{
+		uint *pixel = (uint*)row;
+		/* THIS IS LITTLE ENDIAN (LAST TO FIRST) */
+		for (int x = 0; x < buffer->w; x++)
+		{
+			uchar B = -(x + x_offset);
+			uchar G = (x + x_offset);
+			uchar R = -(y + y_offset);
+			*pixel++ = ((R << 8) | (G << 16) | B);
+		}
+		row += buffer->pitch;
+	}
+}
+
+local void Game_update(Game_memory *memory, Bitmap_buffer *buffer, Sound_buffer *sbuffer, Input *input)
+{
+	Game_state *game_state = (Game_state *)memory->perma_storage;
+	if (!memory->initialized)
+	{
+		memory->initialized = true;
+
+		/* Read files/chunks of files in a block all at once. */
+		/* This would be the appropriate process for current file writing. */
+		
+		char *file_name = __FILE__;							/* Locate file */
+		D_read_result file = D_Platform_read(file_name);
+		if (file.content)
+		{
+			D_Platform_write("test.nimm", &file);
+			D_Platform_free_file_memory(file.content);		/* Remove this file from 'memory' */
+		}
+		else { /* Logging */ }
+		
+	}
+
+	game_state->hertz = 173;
+
+	Game_sound_output(sbuffer, game_state->hertz, 1000);
+	Render_tile_gradient(buffer, game_state->x_off, game_state->y_off);
+
+	Controller *input0 = &input->controller[0];
+
+	if (input0->is_analog)
+	{
+		game_state->hertz = (int)(128.0f * input0->end_x);
+		game_state->y_off += (int)(4.0f * input0->end_y);
+	}
+	
+	if (input0->action.ended_down)
+	{
+		// x_off += 1; /* Keyboard bindings */
+	}
+	else { /* Controller bindings */ }
+}
+
+local void Main_loop()
+{
+	// x_off += input.offset, y_off += input.offset;
+}
